@@ -17,13 +17,17 @@ EndVersion
     exit 1
 }
 
-oneline_usage="todo.sh [-fhpantvV] [-d todo_config] action [task_number] [task_description]"
+# Set script name early.
+TODO_SH=$(basename "$0")
+export TODO_SH
+
+oneline_usage="$TODO_SH [-fhpantvV] [-d todo_config] action [task_number] [task_description]"
 
 usage()
 {
     sed -e 's/^    //' <<EndUsage
     Usage: $oneline_usage
-    Try 'todo.sh -h' for more information.
+    Try '$TODO_SH -h' for more information.
 EndUsage
     exit 1
 }
@@ -204,6 +208,7 @@ help()
         TODOTXT_VERBOSE=1               is same as option -v
         TODOTXT_DEFAULT_ACTION=""       run this when called with no arguments
         TODOTXT_SORT_COMMAND="sort ..." customize list output
+        TODOTXT_FINAL_FILTER="sed ..."  customize list after color, P@+ hiding
 EndHelp
 
     if [ -d "$TODOTXT_ACTIONS_DIR" ]
@@ -335,6 +340,7 @@ shift $(($OPTIND - 1))
 
 # Sanity checks
 : ${TODOTXT_CFG_FILE:=$HOME/todo.cfg}
+TODOTXT_FINAL_FILTER=${TODOTXT_FINAL_FILTER:-cat}
 [ -e "$TODOTXT_CFG_FILE" ] || {
     CFG_FILE_ALT="$HOME/.todo.cfg"
 
@@ -395,7 +401,6 @@ fi
 : ${TODOTXT_LIGHT_CYAN:='\\033[1;36m'}
 : ${TODOTXT_WHITE:='\\033[1;37m'}
 : ${TODOTXT_DEFAULT_COLOR:='\\033[0m'}
-
 # Default priority->color map.
 : ${TODOTXT_PRI_A:=$TODOTXT_YELLOW}        # color for A priority
 : ${TODOTXT_PRI_B:=$TODOTXT_GREEN}         # color for B priority
@@ -518,6 +523,7 @@ _list() {
             s/'${HIDE_PROJECTS_SUBSTITUTION:-^}'//g
             s/'${HIDE_CONTEXTS_SUBSTITUTION:-^}'//g
           '''                                                   \
+        | eval ${TODOTXT_FINAL_FILTER}                          \
     )
     echo -ne "$filtered_items${filtered_items:+\n}"
 
@@ -562,7 +568,7 @@ case $action in
         echo -n "Add: "
         read input
     else
-        [ -z "$2" ] && die "usage: $0 add \"TODO ITEM\""
+        [ -z "$2" ] && die "usage: $TODO_SH add \"TODO ITEM\""
         shift
         input=$*
     fi
@@ -577,9 +583,9 @@ case $action in
     cleanup;;
 
 "addto" )
-    [ -z "$2" ] && die "usage: $0 addto DEST \"TODO ITEM\""
+    [ -z "$2" ] && die "usage: $TODO_SH0 addto DEST \"TODO ITEM\""
     dest="$TODOTXT_TODO_DIR/$2"
-    [ -z "$3" ] && die "usage: $0 addto DEST \"TODO ITEM\""
+    [ -z "$3" ] && die "usage: $TODO_SH0 addto DEST \"TODO ITEM\""
     shift
     shift
     input=$*
@@ -594,7 +600,7 @@ case $action in
     cleanup;;
 
 "append" | "app" )
-    errmsg="usage: $0 append ITEM# \"TEXT TO APPEND\""
+    errmsg="usage: $TODO_SH append ITEM# \"TEXT TO APPEND\""
     shift; item=$1; shift
 
     [ -z "$item" ] && die "$errmsg"
@@ -620,7 +626,7 @@ case $action in
 
 "del" | "rm" )
     # replace deleted line with a blank line when TODOTXT_PRESERVE_LINE_NUMBERS is 1
-    errmsg="usage: $0 del ITEM#"
+    errmsg="usage: $TODO_SH del ITEM#"
     item=$2
     [ -z "$item" ] && die "$errmsg"
 
@@ -659,7 +665,7 @@ case $action in
 
 "depri" | "dp" )
     item=$2
-    errmsg="usage: $0 depri ITEM#"
+    errmsg="usage: $TODO_SH depri ITEM#"
 
     todo=$(sed "$item!d" "$TODOTXT_TODO_FILE")
     [ -z "$todo" ] && die "$item: No such todo."
@@ -679,7 +685,7 @@ case $action in
     fi;;
 
 "do" )
-    errmsg="usage: $0 do ITEM#"
+    errmsg="usage: $TODO_SH do ITEM#"
     item=$2
     [ -z "$item" ] && die "$errmsg"
     [[ "$item" = +([0-9]) ]] || die "$errmsg"
@@ -746,7 +752,7 @@ case $action in
     then
         ## A priority was specified
         pri=$( printf "%s\n" "$1" | tr 'a-z' 'A-Z' | grep '^[A-Z]$' ) || {
-            die "usage: $0 listpri PRIORITY
+            die "usage: $TODO_SH listpri PRIORITY
             note: PRIORITY must a single letter from A to Z."
         }
     else
@@ -760,7 +766,7 @@ case $action in
 
 "move" | "mv" )
     # replace moved line with a blank line when TODOTXT_PRESERVE_LINE_NUMBERS is 1
-    errmsg="usage: $0 mv ITEM# DEST [SRC]"
+    errmsg="usage: $TODO_SH mv ITEM# DEST [SRC]"
     item=$2
     dest="$TODOTXT_TODO_DIR/$3"
     src="$TODOTXT_TODO_DIR/$4"
@@ -808,7 +814,7 @@ case $action in
     cleanup;;
 
 "prepend" | "prep" )
-    errmsg="usage: $0 prepend ITEM# \"TEXT TO PREPEND\""
+    errmsg="usage: $TODO_SH prepend ITEM# \"TEXT TO PREPEND\""
     shift; item=$1; shift
 
     [ -z "$item" ] && die "$errmsg"
@@ -836,7 +842,7 @@ case $action in
     item=$2
     newpri=$( printf "%s\n" "$3" | tr 'a-z' 'A-Z' )
 
-    errmsg="usage: $0 pri ITEM# PRIORITY
+    errmsg="usage: $TODO_SH pri ITEM# PRIORITY
 note: PRIORITY must be anywhere from A to Z."
 
     [ "$#" -ne 3 ] && die "$errmsg"
@@ -857,7 +863,7 @@ note: PRIORITY must be anywhere from A to Z."
     fi;;
 
 "replace" )
-    errmsg="usage: $0 replace ITEM# \"UPDATED ITEM\""
+    errmsg="usage: $TODO_SH replace ITEM# \"UPDATED ITEM\""
     shift; item=$1; shift
 
     [ -z "$item" ] && die "$errmsg"
